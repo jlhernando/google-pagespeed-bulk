@@ -35,7 +35,16 @@ Once the script has finished, you will find the output under the "results" folde
 - results-test.csv
 - results-test.json
 
-These file will contain the lab metrics for each succesful test result from the URLs in your 'urls.csv' file.
+These files will contain the lab metrics for each succesful test result from the URLs in your 'urls.csv' file. The metrics extarcted are:
+- Time To First Bye in milisenconds (TTFB)
+- First Contentful Paint in miliseconds (labFCP)
+- Largest Contentful Paint in miliseconds (labLCP)
+- Cummulative Layout Shift (labCLS)
+- Time To Interactive in miliseconds (TTI)
+- Speed Index in miliseconds (speedIndex)
+- Total Blocking Time in miliseconds (TBT)
+- Max Potential First Input Delay in miliseconds (labMaxFID)
+- Size fo the page in Megabytes(pageSize)
 
 You may also find 6 additional files:
 - results-median.csv
@@ -45,9 +54,13 @@ You may also find 6 additional files:
 - results-origin.csv
 - results-origin.json
 
-The "results-median" files are the median values for each lab metric extracted as long as there were a minimum of 2 tests performed.
+The "results-median" files are the median values for each lab metric extracted as long as there were a minimum of 2 rounds of testing performed.
 
-The "results-field" files will contain the Chrome User Experience Report (CrUX) field data for every succesful test with results.
+The "results-field" files will contain the Chrome User Experience Report (CrUX) field data for every succesful test with results. The metrics extarcted are:
+- First Contentful Paint in miliseconds (FCP)
+- First Input Delay in miliseconds (FID)
+- Largest Contentful Paint in miliseconds (LCP)
+- Cummulative Layout Shift (CLS)
 
 In some cases, the is no CrUX data for the URLs specified in the 'urls.csv'. For these cases, the script will try to extract the origin domain data (aggregation of all URLs from that domain). If there is no origin data, no files will be created.
 
