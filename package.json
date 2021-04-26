@@ -1,0 +1,29 @@
+{
+  "name": "pagespeed-api-nodejs",
+  "version": "1.0.0",
+  "description": "Script to extract Google PageSpeed API Data from multiple URLs. The script allows to perform multiple tests in the same run and calculate the median value for each extracted speed metric and Core Web Vitals metric from the total number of results.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "pagespeed insights api",
+    "pagespeed insights",
+    "google pagespeed insights api",
+    "google api",
+    "website speed tracking",
+    "core web vitals",
+    "crux",
+    "chrome user experience report"
+  ],
+  "author": "Jose Luis Hernando",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "csvtojson": "^2.0.10",
+    "fs": "0.0.1-security",
+    "json2csv": "^5.0.6",
+    "moment": "^2.29.1"
+  }
+}
