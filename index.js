@@ -22,7 +22,7 @@ const getUrls = async () => {
   return list.map(({ url }) => url)
 }
 
-const getSpeedData = async (testNum) => {
+const getSpeedData = async (testNum = 1) => {
   // Get URL List
   const urlList = await getUrls().catch((err) => console.log(`Error reading file ${err}`))
 
@@ -31,9 +31,10 @@ const getSpeedData = async (testNum) => {
   const labResErrors = []
   const fieldDataRes = []
   const fieldOriginRes = []
+  const fieldOriginDomain = new Set()
 
   // Break URL list into chunks to prevent API errors
-  const chunks = chunkArray(urlList, 20)
+  const chunks = chunkArray(urlList, 15)
 
   // Loop through chunks
   for (let [i, chunk] of chunks.entries()) {
@@ -77,27 +78,30 @@ const getSpeedData = async (testNum) => {
               // Push to fieldRes array
               fieldDataRes.push(fieldResObj)
             } else {
-              console.log(
-                `No field data for ${res.value.id}, extracting origin data from ${res.value.loadingExperience.id} instead... `
-              )
+              if (!fieldOriginDomain.has(res.value.loadingExperience.id)) {
+                console.log(
+                  `No field data for ${res.value.id}, extracting origin data from ${res.value.loadingExperience.id} instead... `
+                )
 
-              // Otherwise Extract Origin Field metrics (if there are)
-              const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile
-              const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile
-              const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile
-              const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile
+                // Otherwise Extract Origin Field metrics (if there are)
+                const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile
+                const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile
+                const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile
+                const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile
 
-              // Construct fieldResult object
-              const fieldResObj = {
-                'test url': res.value.loadingExperience.id,
-                fcp: fieldFCP,
-                fid: fieldFID,
-                lcp: fieldLCP,
-                cls: fieldCLS / 100,
-                date: moment().format('YYYY-MM-DD'),
+                // Construct fieldResult object
+                const fieldResObj = {
+                  'test url': res.value.loadingExperience.id,
+                  fcp: fieldFCP,
+                  fid: fieldFID,
+                  lcp: fieldLCP,
+                  cls: fieldCLS / 100,
+                  date: moment().format('YYYY-MM-DD'),
+                }
+                // Push object to fieldOrigin array
+                fieldOriginRes.push(fieldResObj)
+                fieldOriginDomain.add(res.value.loadingExperience.id)
               }
-              // Push object to fieldOrigin array
-              fieldOriginRes.push(fieldResObj)
             }
           }
 
@@ -133,7 +137,11 @@ const getSpeedData = async (testNum) => {
           return finalObj
         } else {
           console.log(`Problem retrieving results for ${urlList[index]}`)
-          labResErrors.push({ url: urlList[index], result: res.reason.response.statusText })
+          console.log(res.reason.response?.data?.error?.message)
+          labResErrors.push({
+            url: urlList[index],
+            reason: res.reason.response?.data?.error?.message,
+          })
         }
       })
       // Push spreaded results to labDataRes array
@@ -214,4 +222,4 @@ const getSpeedData = async (testNum) => {
 }
 
 // Call getSpeedData function (add number of test to run per URL)
-getSpeedData(1)
+getSpeedData()
