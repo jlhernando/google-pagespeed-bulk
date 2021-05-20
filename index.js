@@ -1,70 +1,79 @@
 /* Modules */
-import { mkdir, writeFile } from 'fs/promises'
-import { existsSync } from 'fs'
-import csv from 'csvtojson'
-import { parse } from 'json2csv'
-import { apiRequest } from './api-request.js'
-import { chunkArray } from './chunks.js'
-import moment from 'moment'
-import { median } from './median-math.js'
+import { mkdir, writeFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import csv from 'csvtojson';
+import { parse } from 'json2csv';
+import { apiRequest } from './api-request.js';
+import { chunkArray } from './chunks.js';
+import moment from 'moment';
+import { median } from './median-math.js';
 
 /* Variables */
-const file = 'urls.csv'
-const folder = 'results'
+const file = 'urls.csv'; // File name for list of URLs to check
+const folder = 'results'; // Name of folder for output
+const fullJson = false; // Variable for testing purposes. Extracts full API response into JSON File
+const chunkNum = 15; // Number or URLs per batch
+const numTest = 1; // Number of Lab test to run (Lighthouse)
 
-/////////* Start of script */////////
-console.time()
+////* Start of script *////
+console.time();
 // Create results folder
-existsSync(`./${folder}/`) ? console.log(`${folder} folder exists`) : mkdir(`${folder}`)
+existsSync(`./${folder}/`) ? console.log(`${folder} folder exists`) : mkdir(`${folder}`);
 
 const getUrls = async () => {
-  const list = await csv().fromFile(file)
-  return list.map(({ url }) => url)
-}
+  const list = await csv().fromFile(file);
+  return list.map(({ url }) => url);
+};
 
 const getSpeedData = async (testNum = 1) => {
   // Get URL List
-  const urlList = await getUrls().catch((err) => console.log(`Error reading file ${err}`))
+  const urlList = await getUrls().catch((err) => console.log(`Error reading file ${err}`));
+  const splitChunks = urlList.length / chunkNum;
+  console.log(`The set of urls has been split up in ${Math.ceil(splitChunks)} chunk/s`);
 
   // Holding arrays for results
-  const labDataRes = []
-  const labResErrors = []
-  const fieldDataRes = []
-  const fieldOriginRes = []
-  const fieldOriginDomain = new Set()
+  const labDataRes = [];
+  const labResErrors = [];
+  const fieldDataRes = [];
+  const fieldOriginRes = [];
+  const fieldOriginDomain = new Set();
 
   // Break URL list into chunks to prevent API errors
-  const chunks = chunkArray(urlList, 15)
+  const chunks = chunkArray(urlList, chunkNum);
 
   // Loop through chunks
   for (let [i, chunk] of chunks.entries()) {
     // Iterate through list of URLs within chunk
     for (let round = 0; round < testNum; round++) {
       // Log round of testing
-      console.log(`Testing round #${round + 1} of chunk #${i + 1}`)
+      console.log(`Testing round #${round + 1} of chunk #${i + 1}`);
 
       // Loop trough array to create batch of promises (array)
-      const promises = chunk.map((testUrl) => apiRequest(testUrl))
+      const promises = chunk.map((testUrl) => apiRequest(testUrl));
 
       // Send all requests in parallel
-      const rawBatchResults = await Promise.allSettled(promises)
+      const rawBatchResults = await Promise.allSettled(promises);
 
       // Iterate through API responses
       const results = rawBatchResults.map((res, index) => {
         if (res.status === 'fulfilled') {
+          if (fullJson === true) {
+            !existsSync(`./${folder}/json/`) ? mkdir(`${folder}/json`) : null;
+            writeFile(`${folder}/json/resp-${index}.json`, JSON.stringify(res, null, 2));
+          }
           // Variables to make extractions easier
-          const fieldMetrics = res.value.loadingExperience.metrics
-          const originFallback = res.value.loadingExperience.origin_fallback
-          const labAudit = res.value.lighthouseResult.audits
+          const fieldMetrics = res.value.loadingExperience.metrics;
+          const originFallback = res.value.loadingExperience.origin_fallback;
+          const labAudit = res.value.lighthouseResult.audits;
 
           // If it's the 1st round of testing & test results have field data (CrUX)
           if (round === 0 && res.value.loadingExperience.metrics) {
             if (!originFallback) {
               // Extract Field metrics (if there are)
-              const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile
-              const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile
-              const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile
-              const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile
+              const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile;
+              const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile;
+              const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile;
+              const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile;
 
               // Construct FieldResult object
               const fieldResObj = {
@@ -74,20 +83,20 @@ const getSpeedData = async (testNum = 1) => {
                 lcp: fieldLCP,
                 cls: fieldCLS / 100,
                 date: moment().format('YYYY-MM-DD'),
-              }
+              };
               // Push to fieldRes array
-              fieldDataRes.push(fieldResObj)
+              fieldDataRes.push(fieldResObj);
             } else {
               if (!fieldOriginDomain.has(res.value.loadingExperience.id)) {
                 console.log(
                   `No field data for ${res.value.id}, extracting origin data from ${res.value.loadingExperience.id} instead... `
-                )
+                );
 
                 // Otherwise Extract Origin Field metrics (if there are)
-                const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile
-                const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile
-                const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile
-                const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile
+                const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile;
+                const fieldFID = fieldMetrics.FIRST_INPUT_DELAY_MS.percentile;
+                const fieldLCP = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS.percentile;
+                const fieldCLS = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile;
 
                 // Construct fieldResult object
                 const fieldResObj = {
@@ -97,28 +106,26 @@ const getSpeedData = async (testNum = 1) => {
                   lcp: fieldLCP,
                   cls: fieldCLS / 100,
                   date: moment().format('YYYY-MM-DD'),
-                }
+                };
                 // Push object to fieldOrigin array
-                fieldOriginRes.push(fieldResObj)
-                fieldOriginDomain.add(res.value.loadingExperience.id)
+                fieldOriginRes.push(fieldResObj);
+                fieldOriginDomain.add(res.value.loadingExperience.id);
               }
             }
           }
 
           // Extract Lab metrics
-          const testUrl = res.value.lighthouseResult.finalUrl
-          const TTFB = labAudit['server-response-time'].numericValue
-          const TTI = labAudit.metrics.details.items[0].interactive
-          const labFCP = labAudit.metrics.details.items[0].firstContentfulPaint
-          const labLCP = labAudit.metrics.details.items[0].largestContentfulPaint
-          const labCLS = parseFloat(labAudit['cumulative-layout-shift'].displayValue)
-          const TBT = labAudit.metrics.details.items[0].totalBlockingTime
-          const labMaxFID = labAudit.metrics.details.items[0].maxPotentialFID
-          const speedIndex = labAudit.metrics.details.items[0].speedIndex
-          const pageSize = parseFloat(
-            (labAudit['total-byte-weight'].numericValue / 1000000).toFixed(3)
-          )
-          const date = moment().format('YYYY-MM-DD')
+          const testUrl = res.value.lighthouseResult.finalUrl;
+          const TTFB = labAudit['server-response-time'].numericValue;
+          const TTI = labAudit.metrics.details.items[0].interactive;
+          const labFCP = labAudit.metrics.details.items[0].firstContentfulPaint;
+          const labLCP = labAudit.metrics.details.items[0].largestContentfulPaint;
+          const labCLS = parseFloat(labAudit['cumulative-layout-shift'].displayValue);
+          const TBT = labAudit.metrics.details.items[0].totalBlockingTime;
+          const labMaxFID = labAudit.metrics.details.items[0].maxPotentialFID;
+          const speedIndex = labAudit.metrics.details.items[0].speedIndex;
+          const pageSize = parseFloat((labAudit['total-byte-weight'].numericValue / 1000000).toFixed(3));
+          const date = moment().format('YYYY-MM-DD');
 
           // Construct object
           const finalObj = {
@@ -133,59 +140,71 @@ const getSpeedData = async (testNum = 1) => {
             labMaxFID,
             pageSize,
             date,
-          }
-          return finalObj
+          };
+          return finalObj;
         } else {
-          console.log(`Problem retrieving results for ${urlList[index]}`)
-          console.log(res.reason.response?.data?.error?.message)
+          console.log(`Problem retrieving results for ${urlList[index]}`);
+          console.log(res.reason.response?.data.error.message ?? `Connection error: ${res.reason.message}`);
           labResErrors.push({
             url: urlList[index],
-            reason: res.reason.response?.data?.error?.message,
-          })
+            reason: res.reason.response?.data.error.message ?? `Connection error: ${res.reason.message}`,
+          });
         }
-      })
+      });
       // Push spreaded results to labDataRes array
-      labDataRes.push(...results)
+      labDataRes.push(...results);
     }
   }
 
   // If there if there is field data
   if (fieldDataRes.length > 0) {
     // Write field data results into JSON and CSV
-    console.log('Writing field data...')
-    writeFile(`./${folder}/results-field.json`, JSON.stringify(fieldDataRes, null, 2))
-    writeFile(`./${folder}/results-field.csv`, parse(fieldDataRes))
+    console.log('Writing field data...');
+    writeFile(`./${folder}/results-field.json`, JSON.stringify(fieldDataRes, null, 2)).catch((err) =>
+      console.log(`Error writing field CSV file: ${err}`)
+    );
+    writeFile(`./${folder}/results-field.csv`, parse(fieldDataRes)).catch((err) =>
+      console.log(`Error writing field JSONfile: ${err}`)
+    );
   }
   // If there if there is field data
   if (fieldOriginRes.length > 0) {
     // Write field data results into JSON and CSV
-    console.log('Writing origin field data...')
-    writeFile(`./${folder}/results-origin-field.json`, JSON.stringify(fieldOriginRes, null, 2))
-    writeFile(`./${folder}/results-origin-field.csv`, parse(fieldOriginRes))
+    console.log('Writing origin field data...');
+    writeFile(`./${folder}/results-origin-field.json`, JSON.stringify(fieldOriginRes, null, 2)).catch((err) =>
+      console.log(`Error writing Origin CSV file: ${err}`)
+    );
+    writeFile(`./${folder}/results-origin-field.csv`, parse(fieldOriginRes)).catch((err) =>
+      console.log(`Error writing Origin JSON file: ${err}`)
+    );
   }
 
   // Prevent map loop errors by filtering undefined responses (promise rejections)
-  const labDataResFilter = labDataRes.filter((obj) => obj !== undefined)
+  const labDataResFilter = labDataRes.filter((obj) => obj !== undefined);
   // Write lab data results into JSON and CSV
-  console.log('Writing lab data...')
-  writeFile(`./${folder}/results-test.json`, JSON.stringify(labDataResFilter, null, 2))
-  writeFile(`./${folder}/results-test.csv`, parse(labDataResFilter))
+  console.log('Writing lab data...');
+  writeFile(`./${folder}/results-test.json`, JSON.stringify(labDataResFilter, null, 2)).catch((err) =>
+    console.log(`Error writing Lab CSV file:${err}`)
+  );
+  writeFile(`./${folder}/results-test.csv`, parse(labDataResFilter)).catch((err) =>
+    console.log(`Error writing Lab JSON file:${err}`)
+  );
 
   // If running more than 1 test calculate median
   if (testNum > 1) {
-    console.log('Calculating median...')
+    console.log('Calculating median...');
 
     // Collect analysed URLs in set
-    const seen = new Set()
+    const seen = new Set();
 
     // Reduce labDataRes array to calcualte median for the same URLs in array
     const labMedian = labDataResFilter.reduce((acc, cur, index, labArray) => {
       if (!seen.has(cur.testUrl)) {
         // Add URL to seen list
-        seen.add(cur.testUrl)
+        seen.add(cur.testUrl);
 
         // Filter same URLs from results
-        const sameUrl = labArray.filter((obj) => obj.testUrl === cur.testUrl)
+        const sameUrl = labArray.filter((obj) => obj.testUrl === cur.testUrl);
 
         // Create object witht the same properties but calculating the median value per url
         const objMedian = {
@@ -200,26 +219,30 @@ const getSpeedData = async (testNum = 1) => {
           labMaxFID: median(sameUrl.map(({ labMaxFID }) => labMaxFID)),
           pageSize: median(sameUrl.map(({ pageSize }) => pageSize)),
           date: moment().format('YYYY-MM-DD'),
-        }
+        };
 
         // Push to accumulator
-        acc.push(objMedian)
+        acc.push(objMedian);
       }
 
       // Return accumulator
-      return acc
-    }, [])
+      return acc;
+    }, []);
 
     // Write medians to JSON & CSV
-    writeFile(`./${folder}/results-median.json`, JSON.stringify(labMedian, null, 2))
-    writeFile(`./${folder}/results-median.csv`, parse(labMedian))
+    writeFile(`./${folder}/results-median.json`, JSON.stringify(labMedian, null, 2)).catch((err) =>
+      console.log(`Error writing file:${err}`)
+    );
+    writeFile(`./${folder}/results-median.csv`, parse(labMedian)).catch((err) =>
+      console.log(`Error writing file:${err}`)
+    );
   }
 
   // Log amount of errors
-  console.log(`Encountered ${labResErrors.length} errors running the tests`)
-  console.log(`Ran ${testNum} test/s for a total of ${urlList.length} URL/s`)
-  console.timeEnd()
-}
+  console.log(`Encountered ${labResErrors.length} errors running the tests`);
+  console.log(`Ran ${testNum} test/s for a total of ${urlList.length} URL/s`);
+  console.timeEnd();
+};
 
 // Call getSpeedData function (add number of test to run per URL)
-getSpeedData()
+getSpeedData(numTest);

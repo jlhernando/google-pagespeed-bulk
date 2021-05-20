@@ -2,7 +2,7 @@
 Script to extract Google PageSpeed API Data from multiple URLs. The script allows to perform multiple tests in the same run and calculate the median value for each extracted speed metric and Core Web Vitals metric from the total number of results.
 
 ## How to install and run the script
-1. This script uses ES modules syntax. Make sure that you have installed Node.js version 14 or higher. Type in your terminal:
+1. This script uses ES modules syntax. Make sure that you have installed Node.js version 14 or higher. To check what version you are running type in your terminal:
 
     ```bash
     node -v
@@ -26,6 +26,10 @@ Script to extract Google PageSpeed API Data from multiple URLs. The script allow
 5. Add your key to “api-request.js” file.
 7. Add URLs into the 'urls.csv' file but keep the "url" header.
 8. You can change the number of tests per URL you'd like to perform. The ``getSpeedData()`` accepts a number (interger) as an argument and defaults to 1. Maximum recommended 5.
+    ```javascript
+    // Example tu run 3 lab tests
+    getSpeedData(3)
+    ```
 9. Run the script. Type in your terminal:
     ```bash
     npm start

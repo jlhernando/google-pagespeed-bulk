@@ -25,5 +25,8 @@
     "fs": "0.0.1-security",
     "json2csv": "^5.0.6",
     "moment": "^2.29.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.26.0"
   }
 }
