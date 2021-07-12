@@ -15,11 +15,16 @@ const folder = 'results';
 // Create HTTP request to API
 const apiRequest = async (url) => {
   // API Parameters
-  const endpoint = 'https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed'; // Endpoint
+  const endpoint =
+    'https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed'; // Endpoint
   const key = ''; // API Key (https://developers.google.com/speed/docs/insights/v5/get-started)
   const device = 'mobile'; // Test viewport. 'desktop' also available
 
-  const response = await axios(`${endpoint}?url=${url}&strategy=${device}&key=${key}`);
+  const response = await axios(
+    `${endpoint}?url=${url}&strategy=${device}&key=${key}`
+  );
+  console.log(response.headers);
+  fs.writeFileSync('./res.json', JSON.stringify(response, null, 2));
   return response.data;
 };
 
@@ -78,7 +83,9 @@ const getFieldData = async () => {
         // Push to fieldRes array
         fieldDataRes.push(fieldResObj);
       } else {
-        console.log('No field data for this URL, extracting origin data instead...');
+        console.log(
+          'No field data for this URL, extracting origin data instead...'
+        );
 
         // Otherwise Extract Origin Field metrics (if there are)
         const fieldFCP = fieldMetrics.FIRST_CONTENTFUL_PAINT_MS.percentile;
@@ -102,11 +109,20 @@ const getFieldData = async () => {
   }
   // Write field results to CSV if there are results
   if (fieldOriginRes.length > 0) {
-    fs.writeFileSync(`./${folder}/client-origin-field.json`, JSON.stringify(fieldOriginRes, null, 2));
-    fs.writeFileSync(`./${folder}/client-origin-field.csv`, parse(fieldOriginRes));
+    fs.writeFileSync(
+      `./${folder}/client-origin-field.json`,
+      JSON.stringify(fieldOriginRes, null, 2)
+    );
+    fs.writeFileSync(
+      `./${folder}/client-origin-field.csv`,
+      parse(fieldOriginRes)
+    );
   }
   if (fieldDataRes.length > 0) {
-    fs.writeFileSync(`./${folder}/client-field.json`, JSON.stringify(fieldDataRes, null, 2));
+    fs.writeFileSync(
+      `./${folder}/client-field.json`,
+      JSON.stringify(fieldDataRes, null, 2)
+    );
     fs.writeFileSync(`./${folder}/client-field.csv`, parse(fieldDataRes));
   }
 };
@@ -125,7 +141,9 @@ const getLabData = async (testNum) => {
       console.log(`Requesting Lab data for ${url} Test #${i + 1}`);
 
       // Make request to extract lab data
-      const result = await apiRequest(url).catch((err) => console.log(`Error in the API request: ${err}`));
+      const result = await apiRequest(url).catch((err) =>
+        console.log(`Error in the API request: ${err}`)
+      );
       // Variable to make extraction cleaner
       const audit = result.lighthouseResult.audits;
 
@@ -141,7 +159,9 @@ const getLabData = async (testNum) => {
       const TBT = audit.metrics.details.items[0].totalBlockingTime;
       const labMaxFID = audit.metrics.details.items[0].maxPotentialFID;
       const speedIndex = audit.metrics.details.items[0].speedIndex;
-      const pageSize = parseFloat((audit['total-byte-weight'].numericValue / 1000000).toFixed(3));
+      const pageSize = parseFloat(
+        (audit['total-byte-weight'].numericValue / 1000000).toFixed(3)
+      );
       const date = moment().format('YYYY-MM-DD');
 
       // Construct object
@@ -162,7 +182,10 @@ const getLabData = async (testNum) => {
     }
   }
   // Write results to CSV
-  fs.writeFileSync(`./${folder}/client-lab.json`, JSON.stringify(labAll, null, 2));
+  fs.writeFileSync(
+    `./${folder}/client-lab.json`,
+    JSON.stringify(labAll, null, 2)
+  );
   fs.writeFileSync(`./${folder}/client-lab.csv`, parse(labAll));
   console.timeEnd();
 };
